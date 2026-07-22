@@ -1,20 +1,55 @@
-import { ChevronRight, ExternalLink, EyeOff, Flame, Gauge, Loader2, Send } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  EyeOff,
+  Flame,
+  Gauge,
+  Loader2,
+  Send,
+  Trash2,
+} from "lucide-react";
 import RiskTag from "./RiskTag";
 import PostureTag from "./PostureTag";
 
-export default function StoryCard({ item, analysis, isLoading, onAssess, onGenerate }) {
+export default function StoryCard({
+  item,
+  analysis,
+  isLoading,
+  onAssess,
+  onGenerate,
+  onRemove,
+}) {
+  // Assessed cards start collapsed. Previously every assessment stayed open
+  // forever once it reloaded from the database, which buried the feed.
+  const [open, setOpen] = useState(false);
+  const assessed = analysis && !analysis.error;
+
   return (
-    <article className="card">
+    <article className={`card ${assessed ? "card-done" : ""}`}>
       <div className="card-top">
         <span className="src">{item.source}</span>
         <span className="dot">·</span>
         <span className="time">{item.time}</span>
+        {item.is_tragedy && <span className="flag-tragedy">tragedy</span>}
+        {item.triage_score != null && !assessed && (
+          <span className="triage" title={item.triage_reason || ""}>
+            {item.triage_score}
+          </span>
+        )}
         {item.risk && !analysis && <RiskTag risk={item.risk} mini />}
+        {onRemove && (
+          <button className="card-x" onClick={() => onRemove(item)} aria-label="Remove this entry">
+            <Trash2 size={13} />
+          </button>
+        )}
       </div>
+
       <p className="headline">{item.headline}</p>
 
-      {/* Link to the original article so the reader can get the full context
-          before deciding a posture. Manual entries have no URL. */}
       {item.url && (
         <a
           className="src-link"
@@ -38,9 +73,14 @@ export default function StoryCard({ item, analysis, isLoading, onAssess, onGener
         </div>
       )}
 
-      {analysis && !analysis.error && (
+      {assessed && (
         <div className="analysis">
-          <div className="scores">
+          {/* Always-visible summary. Click to open the full detail. */}
+          <button
+            className="summary-row"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+          >
             <RiskTag risk={analysis.risk} reason={analysis.risk_reason} />
             <div className="imp">
               <Flame size={13} />
@@ -50,24 +90,32 @@ export default function StoryCard({ item, analysis, isLoading, onAssess, onGener
               </div>
             </div>
             <PostureTag posture={analysis.posture} reason={analysis.posture_reason} />
-          </div>
+            <span className="summary-toggle">
+              {open ? "Hide" : "Angles"}
+              {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </span>
+          </button>
 
-          <div className="angles">
-            {analysis.angles.map((a, i) => (
-              <div key={i} className="angle">
-                <div className="angle-name">{a.name}</div>
-                <div className="angle-line">{a.line}</div>
+          {open && (
+            <div className="analysis-body">
+              <div className="angles">
+                {analysis.angles.map((a, i) => (
+                  <div key={i} className="angle">
+                    <div className="angle-name">{a.name}</div>
+                    <div className="angle-line">{a.line}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {analysis.posture !== "stay_silent" ? (
-            <button className="gen-btn" onClick={() => onGenerate({ item, analysis })}>
-              <Send size={14} /> Generate statement (X + Facebook)
-            </button>
-          ) : (
-            <div className="silent-note">
-              <EyeOff size={14} /> Recommendation: stay silent on this one.
+              {analysis.posture !== "stay_silent" ? (
+                <button className="gen-btn" onClick={() => onGenerate({ item, analysis })}>
+                  <Send size={14} /> Generate statement (X + Facebook)
+                </button>
+              ) : (
+                <div className="silent-note">
+                  <EyeOff size={14} /> Recommendation: stay silent on this one.
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import { fetchAllFeeds } from "@/lib/rss";
+import { triageStories } from "@/lib/triage";
+import { DEFAULT_LENS } from "@/lib/constants";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
+
+// Triage is conditioned on the team's saved lens, so read it server-side.
+async function loadLens(supabase) {
+  const { data } = await supabase
+    .from("political_lens")
+    .select("candidate, party, constituency, allies, rivals, notes")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data || DEFAULT_LENS;
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -49,16 +62,58 @@ export async function GET(request) {
       inserted = data?.length ?? 0;
     }
 
+    // ---- Triage: score anything recent that hasn't been scored yet ----
+    // Runs after the upsert so newly inserted rows are included, and is capped
+    // so one huge backlog can't blow the function's time limit.
+    const triageErrors = [];
+    let triaged = 0;
+    let triageUsage = null;
+    try {
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data: pending } = await supabase
+        .from("stories")
+        .select("id, headline")
+        .is("triaged_at", null)
+        .gte("published_at", since)
+        .order("published_at", { ascending: false })
+        .limit(200);
+
+      if (pending?.length) {
+        const lens = await loadLens(supabase);
+        const { scored, errors: tErrors, usage } = await triageStories(lens, pending);
+        triageErrors.push(...tErrors);
+        triageUsage = usage;
+
+        // Update in chunks; upsert would need every not-null column present.
+        for (const row of scored) {
+          const { id, ...fields } = row;
+          await supabase.from("stories").update(fields).eq("id", id);
+        }
+        triaged = scored.length;
+      }
+    } catch (err) {
+      console.error("[refresh] triage failed", err);
+      triageErrors.push(`triage: ${err.message}`);
+    }
+
     await supabase.from("fetch_log").insert({
       tier: "rss",
       queries_used: feedCount, // feeds polled; RSS has no quota, kept for diagnostics
       fetched: stories.length,
       inserted,
-      errors,
+      errors: [...errors, ...triageErrors],
       triggered_by: auth.by,
     });
 
-    return NextResponse.json({ ok: true, feeds: feedCount, fetched: stories.length, inserted, errors });
+    return NextResponse.json({
+      ok: true,
+      feeds: feedCount,
+      fetched: stories.length,
+      inserted,
+      triaged,
+      triageUsage,
+      errors: [...errors, ...triageErrors],
+    });
   } catch (err) {
     console.error("[/api/news/refresh]", err);
     try {

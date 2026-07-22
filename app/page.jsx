@@ -17,10 +17,13 @@ import {
   fetchStories,
   fetchAnalyses,
   fetchFeedStatus,
+  deleteStory,
   insertManualStory,
   saveAnalysis,
   toFeedItem,
 } from "@/lib/db";
+
+const TOP_N = 25;
 
 export default function App() {
   const supabase = useMemo(() => createSupabaseBrowser(), []);
@@ -40,6 +43,7 @@ export default function App() {
   const [cards, setCards] = useState({}); // storyId -> analysis
   const [loadingId, setLoadingId] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   // Load lens, user, live stories, and any assessments already saved.
   useEffect(() => {
@@ -102,10 +106,16 @@ export default function App() {
     };
   }, [supabase]);
 
-  const feed = useMemo(
+  const manualCount = useMemo(() => stories.filter((s) => s.cat === "manual").length, [stories]);
+
+  const filtered = useMemo(
     () => (activeCat === "all" ? stories : stories.filter((f) => f.cat === activeCat)),
     [activeCat, stories]
   );
+
+  // Show the best TOP_N by triage score; the rest sit behind "Show all".
+  const feed = showAll ? filtered : filtered.slice(0, TOP_N);
+  const hiddenCount = filtered.length - feed.length;
 
   async function handleSaveLens(draft) {
     setLens(draft);
@@ -134,6 +144,15 @@ export default function App() {
       setRefreshError(err.message || "Refresh failed.");
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function handleRemoveStory(item) {
+    setStories((s) => s.filter((x) => x.id !== item.id));
+    try {
+      await deleteStory(supabase, item.id);
+    } catch (err) {
+      console.error("[war-room] could not remove story:", err);
     }
   }
 
@@ -200,7 +219,12 @@ export default function App() {
         analyzing={analyzing}
       />
 
-      <CategoryTabs activeCat={activeCat} onSelect={setActiveCat} isLive={isLive} />
+      <CategoryTabs
+        activeCat={activeCat}
+        onSelect={(c) => { setActiveCat(c); setShowAll(false); }}
+        isLive={isLive}
+        manualCount={manualCount}
+      />
 
       <FeedStatus
         status={status}
@@ -224,8 +248,15 @@ export default function App() {
             isLoading={loadingId === item.id}
             onAssess={analyzeItem}
             onGenerate={setSelected}
+            onRemove={item.is_manual ? handleRemoveStory : undefined}
           />
         ))}
+
+        {hiddenCount > 0 && (
+          <button className="show-more" onClick={() => setShowAll(true)}>
+            Show {hiddenCount} more {hiddenCount === 1 ? "story" : "stories"} (lower priority)
+          </button>
+        )}
       </main>
 
       {showLens && (

@@ -1,9 +1,15 @@
-import { Globe2, Landmark, Trophy, Vote } from "lucide-react";
+import { Globe2, Landmark, PenLine, Trophy, Vote } from "lucide-react";
 import { CATEGORIES } from "@/lib/constants";
 
-const CAT_ICONS = { kerala: Landmark, indian: Vote, intl: Globe2, sports: Trophy };
+const CAT_ICONS = {
+  kerala: Landmark,
+  indian: Vote,
+  intl: Globe2,
+  sports: Trophy,
+  manual: PenLine,
+};
 
-export default function CategoryTabs({ activeCat, onSelect, isLive }) {
+export default function CategoryTabs({ activeCat, onSelect, isLive, manualCount = 0 }) {
   return (
     <nav className="tabs">
       <button
@@ -24,8 +30,19 @@ export default function CategoryTabs({ activeCat, onSelect, isLive }) {
           </button>
         );
       })}
+      {/* Pasted headlines get their own tab so they stop sitting on top of
+          the live feed forever. */}
+      {manualCount > 0 && (
+        <button
+          className={`tab ${activeCat === "manual" ? "on" : ""}`}
+          onClick={() => onSelect("manual")}
+        >
+          <PenLine size={14} /> My checks ({manualCount})
+        </button>
+      )}
+
       <span className="feed-note">
-        {isLive ? "Live feed · NewsData.io" : "Live feed = news-API layer (demo data)"}
+        {isLive ? "Live feed · RSS" : "Live feed = news-API layer (demo data)"}
       </span>
     </nav>
   );
