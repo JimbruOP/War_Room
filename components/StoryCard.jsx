@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import {
+  Bookmark,
+  BookmarkCheck,
   Check,
   ChevronDown,
   ChevronRight,
@@ -34,6 +36,8 @@ export default function StoryCard({
   onGenerate,
   onRemove,
   onSaveNote,
+  saved,
+  onToggleSave,
 }) {
   // Assessed cards start collapsed. Previously every assessment stayed open
   // forever once it reloaded from the database, which buried the feed.
@@ -83,6 +87,20 @@ export default function StoryCard({
           </button>
         )}
 
+        {/* Saving is separate from rating priority: this keeps the story on
+            your own shelf. Priority only teaches the ranker. */}
+        {onToggleSave && (
+          <button
+            className={`save-story ${saved ? "on" : ""}`}
+            onClick={() => onToggleSave(item, !saved)}
+            title={saved ? "Saved to Marked. Click to remove." : "Save this for later"}
+            aria-pressed={saved}
+          >
+            {saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+            {saved ? "Saved" : "Save"}
+          </button>
+        )}
+
         {/* Teaches the ranker. One click, and it changes what floats to the
             top of tomorrow's feed. */}
         {onRate && (
@@ -119,7 +137,7 @@ export default function StoryCard({
       </div>
       {/* Your own note. Only offered once a story is marked, and always
           visible afterwards so it can be read back later. */}
-      {onSaveNote && rating && (
+      {onSaveNote && saved && (
         <div className="note-box">
           {editingNote ? (
             <>

@@ -19,7 +19,9 @@ import {
   fetchFeedStatus,
   deleteStory,
   fetchMyRatings,
-  fetchMarked,
+  fetchSaved,
+  saveStory,
+  unsaveStory,
   saveNote,
   rateStory,
   insertManualStory,
@@ -53,6 +55,7 @@ export default function App() {
   const [ratings, setRatings] = useState({}); // storyId -> top|fine|ignore
   const [ratingState, setRatingState] = useState({}); // storyId -> saving|saved|error
   const [marked, setMarked] = useState([]); // your saved shelf, not limited to 24h
+  const [savedIds, setSavedIds] = useState(new Set());
 
   // Load lens, user, live stories, and any assessments already saved.
   useEffect(() => {
@@ -99,8 +102,8 @@ export default function App() {
       }
 
       try {
-        const m = await fetchMarked(supabase);
-        if (!cancelled) setMarked(m);
+        const m = await fetchSaved(supabase);
+        if (!cancelled) { setMarked(m); setSavedIds(new Set(m.map((x) => x.id))); }
       } catch (err) {
         console.error("[war-room] failed to load marked stories:", err);
       }
@@ -182,7 +185,6 @@ export default function App() {
     try {
       await rateStory(supabase, { story: item, rating });
       setRatingState((s) => ({ ...s, [item.id]: "saved" }));
-      refreshMarked();
       // Clear the confirmation after a beat; the button stays highlighted.
       setTimeout(
         () =>
@@ -210,11 +212,24 @@ export default function App() {
     }
   }
 
-  async function refreshMarked() {
+  async function handleToggleSave(item, next) {
+    // Optimistic; saving should feel instant.
+    setSavedIds((s) => {
+      const n = new Set(s);
+      next ? n.add(item.id) : n.delete(item.id);
+      return n;
+    });
     try {
-      setMarked(await fetchMarked(supabase));
+      if (next) await saveStory(supabase, item);
+      else await unsaveStory(supabase, item.id);
+      setMarked(await fetchSaved(supabase));
     } catch (err) {
-      console.error("[war-room] could not reload marked:", err);
+      console.error("[war-room] could not update saved:", err);
+      setSavedIds((s) => {
+        const n = new Set(s);
+        next ? n.delete(item.id) : n.add(item.id);
+        return n;
+      });
     }
   }
 
@@ -328,6 +343,8 @@ export default function App() {
             onGenerate={setSelected}
             onRemove={item.is_manual ? handleRemoveStory : undefined}
             onSaveNote={handleSaveNote}
+            saved={savedIds.has(item.id)}
+            onToggleSave={handleToggleSave}
           />
         ))}
 
