@@ -73,7 +73,7 @@ If you later add a custom domain, add that too.
 
 ## 5. The cron problem — read this before you pick a plan
 
-`vercel.json` polls `/api/news/refresh` **every 15 minutes**. RSS has no quota,
+`vercel.json` polls `/api/news/refresh` **every 5 minutes**. RSS has no quota,
 so frequency costs nothing; the only limit is your hosting plan.
 
 **Vercel's free Hobby plan only runs cron jobs once per day.** Anything more
@@ -87,7 +87,7 @@ Delete the `crons` block from `vercel.json`, then use a free service like
 https://<your-project>.vercel.app/api/news/refresh
 ```
 
-with header `Authorization: Bearer <your CRON_SECRET>`, every 15 minutes.
+with header `Authorization: Bearer <your CRON_SECRET>`, every 5 minutes.
 
 Identical to what Vercel Cron would do — the endpoint doesn't care who calls it
 as long as the secret matches.
