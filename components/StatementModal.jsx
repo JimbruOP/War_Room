@@ -5,7 +5,7 @@ import { Loader2, Send, Sparkles, X as XIcon } from "lucide-react";
 import OutputBox from "./OutputBox";
 import { TONES } from "@/lib/constants";
 import { generateStatement } from "@/lib/api";
-import { saveStatement, isStoryId } from "@/lib/db";
+import { saveStatement, rateStory, isStoryId } from "@/lib/db";
 
 export default function StatementModal({ data, lens, supabase, onClose }) {
   const { item, analysis } = data;
@@ -38,6 +38,8 @@ export default function StatementModal({ data, lens, supabase, onClose }) {
           x: result.x,
           facebook: result.facebook,
         });
+        // Strongest behavioural signal there is: they wrote a post about it.
+        rateStory(supabase, { story: item, rating: "top", signal: "generated" }).catch(() => {});
       } catch {
         /* drafts are still shown even if the history write fails */
       }

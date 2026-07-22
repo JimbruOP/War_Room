@@ -15,10 +15,18 @@ import {
 import RiskTag from "./RiskTag";
 import PostureTag from "./PostureTag";
 
+const RATE_OPTIONS = [
+  { id: "top", label: "Top", hint: "Show me more like this" },
+  { id: "fine", label: "Fine", hint: "Worth knowing, not a priority" },
+  { id: "ignore", label: "Ignore", hint: "Don't show me this kind of story" },
+];
+
 export default function StoryCard({
   item,
   analysis,
   isLoading,
+  rating,
+  onRate,
   onAssess,
   onGenerate,
   onRemove,
@@ -62,11 +70,32 @@ export default function StoryCard({
         </a>
       )}
 
-      {!analysis && !isLoading && (
-        <button className="assess-btn" onClick={() => onAssess(item)}>
-          <Gauge size={15} /> Assess this story <ChevronRight size={14} />
-        </button>
-      )}
+      <div className="card-actions">
+        {!analysis && !isLoading && (
+          <button className="assess-btn" onClick={() => onAssess(item)}>
+            <Gauge size={15} /> Assess this story <ChevronRight size={14} />
+          </button>
+        )}
+
+        {/* Teaches the ranker. One click, and it changes what floats to the
+            top of tomorrow's feed. */}
+        {onRate && (
+          <div className="rate" role="group" aria-label="Rate this story's priority">
+            <span className="rate-label">Priority</span>
+            {RATE_OPTIONS.map((o) => (
+              <button
+                key={o.id}
+                className={`rate-btn rate-${o.id} ${rating === o.id ? "on" : ""}`}
+                onClick={() => onRate(item, rating === o.id ? null : o.id)}
+                title={o.hint}
+                aria-pressed={rating === o.id}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {isLoading && (
         <div className="loading-row">
           <Loader2 size={16} className="spin" /> Reading the room…

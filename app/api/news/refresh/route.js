@@ -5,6 +5,33 @@ import { DEFAULT_LENS } from "@/lib/constants";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
+// Pull the team's past ratings so triage learns their judgement rather than
+// following the generic scoring guide. Explicit Top/Ignore clicks teach most;
+// "generated a statement" is the strongest behavioural signal we have.
+// Note: we deliberately infer NO negative signal from stories nobody clicked —
+// not clicking is far too weak to treat as a judgement.
+async function loadTrainingExamples(supabase, limit = 14) {
+  const { data, error } = await supabase
+    .from("story_feedback")
+    .select("headline, rating, signal")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error || !data?.length) return null;
+
+  const pick = (rows) => [...new Set(rows.map((r) => r.headline))].slice(0, limit);
+  // Explicit ratings first, then behavioural ones as backfill.
+  const explicit = data.filter((r) => r.signal === "explicit");
+  const implicit = data.filter((r) => r.signal !== "explicit");
+
+  return {
+    top: pick([
+      ...explicit.filter((r) => r.rating === "top"),
+      ...implicit.filter((r) => r.rating === "top"),
+    ]),
+    ignore: pick(explicit.filter((r) => r.rating === "ignore")),
+  };
+}
+
 // Triage is conditioned on the team's saved lens, so read it server-side.
 async function loadLens(supabase) {
   const { data } = await supabase
@@ -79,8 +106,11 @@ export async function GET(request) {
         .limit(200);
 
       if (pending?.length) {
-        const lens = await loadLens(supabase);
-        const { scored, errors: tErrors, usage } = await triageStories(lens, pending);
+        const [lens, examples] = await Promise.all([
+          loadLens(supabase),
+          loadTrainingExamples(supabase).catch(() => null),
+        ]);
+        const { scored, errors: tErrors, usage } = await triageStories(lens, pending, examples);
         triageErrors.push(...tErrors);
         triageUsage = usage;
 

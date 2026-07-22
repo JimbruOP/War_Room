@@ -18,6 +18,8 @@ import {
   fetchAnalyses,
   fetchFeedStatus,
   deleteStory,
+  fetchMyRatings,
+  rateStory,
   insertManualStory,
   saveAnalysis,
   toFeedItem,
@@ -44,6 +46,7 @@ export default function App() {
   const [loadingId, setLoadingId] = useState(null);
   const [selected, setSelected] = useState(null);
   const [showAll, setShowAll] = useState(false);
+  const [ratings, setRatings] = useState({}); // storyId -> top|fine|ignore
 
   // Load lens, user, live stories, and any assessments already saved.
   useEffect(() => {
@@ -77,11 +80,12 @@ export default function App() {
           setStories(rows.map(toFeedItem));
           setIsLive(true);
           setFeedError(null);
-          const saved = await fetchAnalyses(
-            supabase,
-            rows.map((r) => r.id)
-          );
-          if (!cancelled) setCards(saved);
+          const ids = rows.map((r) => r.id);
+          const [saved, mine] = await Promise.all([
+            fetchAnalyses(supabase, ids),
+            fetchMyRatings(supabase, ids).catch(() => ({})),
+          ]);
+          if (!cancelled) { setCards(saved); setRatings(mine); }
         }
       } catch (err) {
         console.error("[war-room] failed to load stories:", err);
@@ -147,6 +151,17 @@ export default function App() {
     }
   }
 
+  async function handleRate(item, rating) {
+    // Optimistic: the click should feel instant even though it writes remotely.
+    setRatings((r) => ({ ...r, [item.id]: rating }));
+    if (!rating) return; // un-toggled; leave the old row, it gets overwritten next time
+    try {
+      await rateStory(supabase, { story: item, rating });
+    } catch (err) {
+      console.error("[war-room] could not save rating:", err);
+    }
+  }
+
   async function handleRemoveStory(item) {
     setStories((s) => s.filter((x) => x.id !== item.id));
     try {
@@ -174,6 +189,8 @@ export default function App() {
         /* analysis still usable in-session */
       }
       setCards((c) => ({ ...c, [item.id]: parsed }));
+      // Behavioural signal: bothering to assess something means it mattered.
+      rateStory(supabase, { story: item, rating: "top", signal: "assessed" }).catch(() => {});
     } catch {
       setCards((c) => ({ ...c, [item.id]: { error: true } }));
     } finally {
@@ -246,6 +263,8 @@ export default function App() {
             item={item}
             analysis={cards[item.id]}
             isLoading={loadingId === item.id}
+            rating={ratings[item.id]}
+            onRate={handleRate}
             onAssess={analyzeItem}
             onGenerate={setSelected}
             onRemove={item.is_manual ? handleRemoveStory : undefined}
