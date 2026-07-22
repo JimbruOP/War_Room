@@ -84,10 +84,16 @@ export async function GET(request) {
         triageErrors.push(...tErrors);
         triageUsage = usage;
 
-        // Update in chunks; upsert would need every not-null column present.
-        for (const row of scored) {
-          const { id, ...fields } = row;
-          await supabase.from("stories").update(fields).eq("id", id);
+        // Write scores back in parallel waves. Doing these one at a time meant
+        // 200 sequential round-trips and pushed the whole request past 60s,
+        // which would time out on Vercel.
+        const WRITE_CONCURRENCY = 25;
+        for (let i = 0; i < scored.length; i += WRITE_CONCURRENCY) {
+          await Promise.all(
+            scored.slice(i, i + WRITE_CONCURRENCY).map(({ id, ...fields }) =>
+              supabase.from("stories").update(fields).eq("id", id)
+            )
+          );
         }
         triaged = scored.length;
       }
