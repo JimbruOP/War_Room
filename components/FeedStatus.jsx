@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, RefreshCw, Clock, Rss, AlertTriangle } from "lucide-react";
-import { nextRefresh, formatCountdown, formatClock } from "@/lib/schedule";
+import { nextRefresh, formatCountdown, formatClock, REFRESH_MINUTES } from "@/lib/schedule";
 import { timeAgo } from "@/lib/db";
 
 export default function FeedStatus({ status, onRefresh, refreshing, error }) {
@@ -19,6 +19,12 @@ export default function FeedStatus({ status, onRefresh, refreshing, error }) {
   const nextAt = nextRefresh(now);
   const last = status.last;
   const feedErrors = Array.isArray(last?.errors) ? last.errors : [];
+
+  // Only show a countdown if a scheduler is demonstrably running. On a laptop
+  // there is no cron, so the old countdown promised refreshes that never came.
+  // If the last fetch is older than a few intervals, say so instead of lying.
+  const lastAgeMin = last ? (now - new Date(last.created_at)) / 60000 : Infinity;
+  const schedulerRunning = lastAgeMin <= REFRESH_MINUTES * 3;
 
   return (
     <div className="fstat">
@@ -42,10 +48,18 @@ export default function FeedStatus({ status, onRefresh, refreshing, error }) {
 
         <span className="fstat-sep">·</span>
 
-        <span className="fstat-item">
-          Next in <b className="fstat-count">{formatCountdown(nextAt - now)}</b>
-          <span className="fstat-dim"> ({formatClock(nextAt)})</span>
-        </span>
+        {schedulerRunning ? (
+          <span className="fstat-item">
+            Next in <b className="fstat-count">{formatCountdown(nextAt - now)}</b>
+            <span className="fstat-dim"> ({formatClock(nextAt)})</span>
+          </span>
+        ) : (
+          <span className="fstat-item fstat-idle" title="No scheduler is calling /api/news/refresh. Deploy, or use Refresh now.">
+            <AlertTriangle size={12} />
+            <b>Auto-refresh is not running</b>
+            <span className="fstat-dim">— use Refresh now</span>
+          </span>
+        )}
 
         <button
           className="fstat-btn"
