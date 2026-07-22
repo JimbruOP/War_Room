@@ -120,7 +120,7 @@ export default function App() {
     setRefreshing(true);
     setRefreshError(null);
     try {
-      await refreshNews("core");
+      await refreshNews();
       const rows = await fetchStories(supabase);
       if (rows?.length) {
         setStories(rows.map(toFeedItem));

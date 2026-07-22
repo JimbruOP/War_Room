@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchAllCategories, queriesForTier } from "@/lib/news";
+import { fetchAllFeeds } from "@/lib/rss";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
@@ -7,16 +7,15 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Two callers are allowed:
-//   1. Vercel Cron, carrying "Authorization: Bearer <CRON_SECRET>"
-//   2. A signed-in team member clicking "Refresh now" in the UI
-// Anyone else is rejected so outsiders can't burn the NewsData quota.
+//   1. The scheduler, carrying "Authorization: Bearer <CRON_SECRET>"
+//   2. A signed-in team member clicking "Refresh now"
 async function authorize(request) {
   const secret = process.env.CRON_SECRET;
   const auth = request.headers.get("authorization");
   if (secret && auth === `Bearer ${secret}`) return { ok: true, by: "cron" };
 
   const supabase = await createSupabaseServer();
-  if (!supabase) return { ok: !secret, by: "manual" }; // local mode, no auth set up
+  if (!supabase) return { ok: !secret, by: "manual" }; // local mode, no auth configured
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -27,15 +26,10 @@ async function authorize(request) {
 
 export async function GET(request) {
   const auth = await authorize(request);
-  if (!auth.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const tier = new URL(request.url).searchParams.get("tier") || "all";
-  const queriesUsed = queriesForTier(tier).length;
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { stories, errors } = await fetchAllCategories(process.env.NEWSDATA_API_KEY, tier);
+    const { stories, errors, feedCount } = await fetchAllFeeds();
 
     const supabase = createSupabaseAdmin();
     if (!supabase) {
@@ -55,34 +49,23 @@ export async function GET(request) {
       inserted = data?.length ?? 0;
     }
 
-    // Record the run so the UI can show last-fetch time and credits spent.
-    // Credits are consumed even when everything was a duplicate, so this must
-    // be logged regardless of `inserted`.
     await supabase.from("fetch_log").insert({
-      tier,
-      queries_used: queriesUsed,
+      tier: "rss",
+      queries_used: feedCount, // feeds polled; RSS has no quota, kept for diagnostics
       fetched: stories.length,
       inserted,
       errors,
       triggered_by: auth.by,
     });
 
-    return NextResponse.json({
-      ok: true,
-      tier,
-      creditsSpent: queriesUsed,
-      fetched: stories.length,
-      inserted,
-      errors,
-    });
+    return NextResponse.json({ ok: true, feeds: feedCount, fetched: stories.length, inserted, errors });
   } catch (err) {
     console.error("[/api/news/refresh]", err);
-    // Log failed runs too — a failed call can still have spent credits.
     try {
       const admin = createSupabaseAdmin();
       await admin?.from("fetch_log").insert({
-        tier,
-        queries_used: queriesUsed,
+        tier: "rss",
+        queries_used: 0,
         fetched: 0,
         inserted: 0,
         errors: [err.message || "unknown error"],

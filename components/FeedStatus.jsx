@@ -1,16 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, RefreshCw, Clock, Gauge } from "lucide-react";
-import {
-  nextCoreRun,
-  nextWideRun,
-  nextQuotaReset,
-  formatCountdown,
-  formatClock,
-} from "@/lib/schedule";
+import { Loader2, RefreshCw, Clock, Rss, AlertTriangle } from "lucide-react";
+import { nextRefresh, formatCountdown, formatClock } from "@/lib/schedule";
 import { timeAgo } from "@/lib/db";
-import { NEWSDATA_DAILY_LIMIT, CORE_QUERY_COUNT } from "@/lib/constants";
 
 export default function FeedStatus({ status, onRefresh, refreshing, error }) {
   const [now, setNow] = useState(() => new Date());
@@ -23,47 +16,42 @@ export default function FeedStatus({ status, onRefresh, refreshing, error }) {
 
   if (!status) return null;
 
-  const coreAt = nextCoreRun(now);
-  const wideAt = nextWideRun(now);
-  const resetAt = nextQuotaReset(now);
-
-  const used = status.creditsUsed ?? 0;
-  const pct = Math.min(100, Math.round((used / NEWSDATA_DAILY_LIMIT) * 100));
-  const level = pct >= 85 ? "danger" : pct >= 60 ? "warn" : "ok";
-  const remaining = Math.max(0, NEWSDATA_DAILY_LIMIT - used);
-  const canAfford = remaining >= CORE_QUERY_COUNT;
+  const nextAt = nextRefresh(now);
+  const last = status.last;
+  const feedErrors = Array.isArray(last?.errors) ? last.errors : [];
 
   return (
     <div className="fstat">
       <div className="fstat-row">
+        {/* Feed count comes from the log, not lib/rss.js — that module imports
+            node:crypto and must never reach the browser bundle. */}
+        <span className="fstat-item">
+          <Rss size={12} />
+          <b>{last?.queries_used ?? "—"}</b> live feeds
+        </span>
+
+        <span className="fstat-sep">·</span>
+
         <span className="fstat-item">
           <Clock size={12} />
-          Last fetch{" "}
-          <b>{status.last ? timeAgo(status.last.created_at) : "never"}</b>
+          Last fetch <b>{last ? timeAgo(last.created_at) : "never"}</b>
+          {last?.inserted != null && (
+            <span className="fstat-dim"> (+{last.inserted} new)</span>
+          )}
         </span>
 
         <span className="fstat-sep">·</span>
 
         <span className="fstat-item">
-          Next Kerala fetch in <b className="fstat-count">{formatCountdown(coreAt - now)}</b>
-          <span className="fstat-dim"> ({formatClock(coreAt)})</span>
-        </span>
-
-        <span className="fstat-sep">·</span>
-
-        <span className="fstat-item fstat-dim">
-          National/world {formatCountdown(wideAt - now)}
+          Next in <b className="fstat-count">{formatCountdown(nextAt - now)}</b>
+          <span className="fstat-dim"> ({formatClock(nextAt)})</span>
         </span>
 
         <button
           className="fstat-btn"
           onClick={onRefresh}
-          disabled={refreshing || !canAfford}
-          title={
-            canAfford
-              ? `Fetch the Kerala desk now (costs ${CORE_QUERY_COUNT} credits)`
-              : "Not enough credits left today"
-          }
+          disabled={refreshing}
+          title="Poll every feed now"
         >
           {refreshing ? (
             <>
@@ -77,21 +65,13 @@ export default function FeedStatus({ status, onRefresh, refreshing, error }) {
         </button>
       </div>
 
-      <div className="fstat-row">
-        <span className={`fstat-item fstat-${level}`}>
-          <Gauge size={12} />
-          <b>
-            {used} / {NEWSDATA_DAILY_LIMIT}
-          </b>{" "}
-          credits used today
-        </span>
-        <div className="fstat-bar">
-          <div className={`fstat-fill fstat-fill-${level}`} style={{ width: `${pct}%` }} />
+      {feedErrors.length > 0 && (
+        <div className="fstat-item fstat-warnrow">
+          <AlertTriangle size={12} />
+          {feedErrors.length} feed{feedErrors.length > 1 ? "s" : ""} failed last run:{" "}
+          <span className="fstat-dim">{feedErrors.join(" · ")}</span>
         </div>
-        <span className="fstat-item fstat-dim">
-          {remaining} left · resets in {formatCountdown(resetAt - now)}
-        </span>
-      </div>
+      )}
 
       {error && <div className="fstat-err">{error}</div>}
     </div>

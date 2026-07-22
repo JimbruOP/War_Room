@@ -49,7 +49,6 @@ In Vercel → Project → **Settings → Environment Variables**, add each of th
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API | Yes (safe) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API | Yes (safe) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API (`service_role`) | **No — never** |
-| `NEWSDATA_API_KEY` | newsdata.io | No |
 | `CRON_SECRET` | the value in your `.env.local` | No |
 
 Copy them from your local `.env.local`. Only the two `NEXT_PUBLIC_` ones are
@@ -74,38 +73,40 @@ If you later add a custom domain, add that too.
 
 ## 5. The cron problem — read this before you pick a plan
 
-`vercel.json` schedules two jobs:
+`vercel.json` polls `/api/news/refresh` **every 15 minutes**. RSS has no quota,
+so frequency costs nothing; the only limit is your hosting plan.
 
-| Job | Schedule | Cost |
-|---|---|---|
-| `/api/news/refresh?tier=core` | hourly | 120 NewsData credits/day |
-| `/api/news/refresh?tier=wide` | every 6h | 12 credits/day |
-
-**Vercel's free Hobby plan only runs cron jobs once per day.** Hourly schedules
-need Pro ($20/month). You have three options:
+**Vercel's free Hobby plan only runs cron jobs once per day.** Anything more
+frequent needs Pro ($20/month). Three options:
 
 ### Option A — external scheduler (free, recommended to start)
 Delete the `crons` block from `vercel.json`, then use a free service like
 [cron-job.org](https://cron-job.org) to call:
 
 ```
-https://<your-project>.vercel.app/api/news/refresh?tier=core
+https://<your-project>.vercel.app/api/news/refresh
 ```
 
-with header `Authorization: Bearer <your CRON_SECRET>`, hourly.
-Add a second job for `?tier=wide` every 6 hours.
+with header `Authorization: Bearer <your CRON_SECRET>`, every 15 minutes.
 
-This is exactly what Vercel Cron would do; the endpoint doesn't care who calls
-it as long as the secret matches.
+Identical to what Vercel Cron would do — the endpoint doesn't care who calls it
+as long as the secret matches.
 
 ### Option B — Vercel Pro
 $20/month. `vercel.json` works as written, nothing to change.
 
 ### Option C — accept daily
-Leave it on Hobby with a once-daily schedule. The feed updates each morning.
-Fine for testing, too slow for genuine rapid response.
+Leave it on Hobby with a once-daily schedule. Too slow for genuine rapid
+response, but fine while testing.
 
-You can always hit **Refresh now** in the UI manually regardless of plan.
+You can always hit **Refresh now** in the UI manually, on any plan.
+
+### Why RSS and not a news API
+NewsData.io's free tier delays every article by **at least 12 hours** — measured
+across 80 stored stories the fastest was 12.1h and not one arrived sooner. The
+RSS feeds in `lib/rss.js` deliver the same stories in **about 5 minutes**, free
+and unmetered. Run `node scripts/probe-feeds.mjs` to check every feed's health
+and freshness if the feed ever looks stale.
 
 ---
 
@@ -114,7 +115,7 @@ You can always hit **Refresh now** in the UI manually regardless of plan.
 - [ ] Sign in with your magic link on the live URL
 - [ ] Confirm the feed shows real stories (not the demo fallback)
 - [ ] Open the Political lens, save an edit, reload — it should persist
-- [ ] Click **Refresh now** and watch the credit counter move
+- [ ] Click **Refresh now** and confirm new stories appear
 - [ ] Assess a story, reload the page, confirm the assessment survived
 - [ ] Generate a statement, then check the `statements` table in Supabase
 

@@ -82,6 +82,7 @@ body { background: var(--paper); }
 .fstat-btn:hover:not(:disabled) { border-color: var(--ink); }
 .fstat-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .fstat-err { font-size: 11.5px; color: var(--danger); }
+.fstat-warnrow { color: var(--warn); font-size: 11px; align-items: flex-start; white-space: normal; }
 
 @media (max-width: 620px) {
   .fstat-btn { margin-left: 0; }
