@@ -94,7 +94,9 @@ body { background: var(--paper); }
 .dot { color: var(--faint); }
 .time { color: var(--muted); }
 .risk-mini { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; text-transform: capitalize; }
-.headline { font-size: 15.5px; line-height: 1.45; font-weight: 600; margin: 0 0 12px; }
+.headline { font-size: 15.5px; line-height: 1.45; font-weight: 600; margin: 0 0 8px; }
+.src-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--accent-ink); text-decoration: none; border-bottom: 1px solid transparent; margin: 0 0 12px; transition: border-color 200ms ease; }
+.src-link:hover { border-bottom-color: var(--accent-ink); }
 
 .assess-btn { display: inline-flex; align-items: center; gap: 7px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 9px 13px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink); transition: border-color 200ms ease; }
 .assess-btn:hover { border-color: var(--ink); }

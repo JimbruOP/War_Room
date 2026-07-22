@@ -1,4 +1,4 @@
-import { ChevronRight, EyeOff, Flame, Gauge, Loader2, Send } from "lucide-react";
+import { ChevronRight, ExternalLink, EyeOff, Flame, Gauge, Loader2, Send } from "lucide-react";
 import RiskTag from "./RiskTag";
 import PostureTag from "./PostureTag";
 
@@ -12,6 +12,20 @@ export default function StoryCard({ item, analysis, isLoading, onAssess, onGener
         {item.risk && !analysis && <RiskTag risk={item.risk} mini />}
       </div>
       <p className="headline">{item.headline}</p>
+
+      {/* Link to the original article so the reader can get the full context
+          before deciding a posture. Manual entries have no URL. */}
+      {item.url && (
+        <a
+          className="src-link"
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Read the full report at ${item.source} (opens in a new tab)`}
+        >
+          <ExternalLink size={12} /> Read full report on {item.source}
+        </a>
+      )}
 
       {!analysis && !isLoading && (
         <button className="assess-btn" onClick={() => onAssess(item)}>
