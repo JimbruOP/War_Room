@@ -1,4 +1,4 @@
-import { Globe2, Landmark, PenLine, Trophy, Vote } from "lucide-react";
+import { Globe2, Landmark, PenLine, Star, Trophy, Vote } from "lucide-react";
 import { CATEGORIES } from "@/lib/constants";
 
 const CAT_ICONS = {
@@ -9,9 +9,25 @@ const CAT_ICONS = {
   manual: PenLine,
 };
 
-export default function CategoryTabs({ activeCat, onSelect, isLive, manualCount = 0 }) {
+export default function CategoryTabs({
+  activeCat,
+  onSelect,
+  isLive,
+  manualCount = 0,
+  topCount = 0,
+}) {
   return (
     <nav className="tabs">
+      {/* Top stories first: what the ranker scored high, plus anything the
+          team explicitly marked Top. */}
+      <button
+        className={`tab tab-top ${activeCat === "top" ? "on" : ""}`}
+        onClick={() => onSelect("top")}
+        title="High-priority stories: marked Top by the team, or scored 70+ by the ranker"
+      >
+        <Star size={14} /> Top stories{topCount > 0 ? ` (${topCount})` : ""}
+      </button>
+
       <button
         className={`tab ${activeCat === "all" ? "on" : ""}`}
         onClick={() => onSelect("all")}

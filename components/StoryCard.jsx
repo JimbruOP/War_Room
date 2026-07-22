@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   ExternalLink,
@@ -26,6 +27,7 @@ export default function StoryCard({
   analysis,
   isLoading,
   rating,
+  ratingState,
   onRate,
   onAssess,
   onGenerate,
@@ -82,17 +84,32 @@ export default function StoryCard({
         {onRate && (
           <div className="rate" role="group" aria-label="Rate this story's priority">
             <span className="rate-label">Priority</span>
-            {RATE_OPTIONS.map((o) => (
-              <button
-                key={o.id}
-                className={`rate-btn rate-${o.id} ${rating === o.id ? "on" : ""}`}
-                onClick={() => onRate(item, rating === o.id ? null : o.id)}
-                title={o.hint}
-                aria-pressed={rating === o.id}
-              >
-                {o.label}
-              </button>
-            ))}
+            {RATE_OPTIONS.map((o) => {
+              const active = rating === o.id;
+              return (
+                <button
+                  key={o.id}
+                  className={`rate-btn rate-${o.id} ${active ? "on" : ""}`}
+                  // Clicking the active option does nothing, so a rating can't
+                  // be wiped by a stray second click.
+                  onClick={() => !active && onRate(item, o.id)}
+                  title={active ? `Marked ${o.label}. Click another to change.` : o.hint}
+                  aria-pressed={active}
+                >
+                  {active && <Check size={11} />} {o.label}
+                </button>
+              );
+            })}
+
+            {ratingState === "saving" && (
+              <span className="rate-note"><Loader2 size={11} className="spin" /> Saving…</span>
+            )}
+            {ratingState === "saved" && (
+              <span className="rate-note ok"><Check size={11} /> Priority marked</span>
+            )}
+            {ratingState === "error" && (
+              <span className="rate-note bad">Couldn&apos;t save</span>
+            )}
           </div>
         )}
       </div>

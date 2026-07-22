@@ -120,6 +120,13 @@ body { background: var(--paper); }
 .card-x { background: transparent; border: none; cursor: pointer; color: var(--faint); padding: 2px 4px; border-radius: 5px; display: grid; place-items: center; }
 .card-x:hover { color: var(--danger); background: var(--danger-bg); }
 
+.tab-top { border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.tab-top.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rate-note { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 4px; white-space: nowrap; }
+.rate-note.ok { color: var(--ok); }
+.rate-note.bad { color: var(--danger); }
+.rate-btn { display: inline-flex; align-items: center; gap: 3px; }
+
 /* Priority rating — teaches the ranker */
 .card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rate { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }

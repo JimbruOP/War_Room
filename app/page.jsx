@@ -26,6 +26,8 @@ import {
 } from "@/lib/db";
 
 const TOP_N = 25;
+// A story is a "top story" if the team marked it Top, or the ranker scored it high.
+const TOP_SCORE_THRESHOLD = 70;
 
 export default function App() {
   const supabase = useMemo(() => createSupabaseBrowser(), []);
@@ -47,6 +49,7 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const [ratings, setRatings] = useState({}); // storyId -> top|fine|ignore
+  const [ratingState, setRatingState] = useState({}); // storyId -> saving|saved|error
 
   // Load lens, user, live stories, and any assessments already saved.
   useEffect(() => {
@@ -112,10 +115,22 @@ export default function App() {
 
   const manualCount = useMemo(() => stories.filter((s) => s.cat === "manual").length, [stories]);
 
-  const filtered = useMemo(
-    () => (activeCat === "all" ? stories : stories.filter((f) => f.cat === activeCat)),
-    [activeCat, stories]
+  const topCount = useMemo(
+    () =>
+      stories.filter(
+        (s) => ratings[s.id] === "top" || (s.triage_score ?? 0) >= TOP_SCORE_THRESHOLD
+      ).length,
+    [stories, ratings]
   );
+
+  const filtered = useMemo(() => {
+    if (activeCat === "top")
+      return stories.filter(
+        (s) => ratings[s.id] === "top" || (s.triage_score ?? 0) >= TOP_SCORE_THRESHOLD
+      );
+    if (activeCat === "all") return stories;
+    return stories.filter((f) => f.cat === activeCat);
+  }, [activeCat, stories, ratings]);
 
   // Show the best TOP_N by triage score; the rest sit behind "Show all".
   const feed = showAll ? filtered : filtered.slice(0, TOP_N);
@@ -152,13 +167,29 @@ export default function App() {
   }
 
   async function handleRate(item, rating) {
+    const previous = ratings[item.id];
     // Optimistic: the click should feel instant even though it writes remotely.
     setRatings((r) => ({ ...r, [item.id]: rating }));
-    if (!rating) return; // un-toggled; leave the old row, it gets overwritten next time
+    setRatingState((s) => ({ ...s, [item.id]: "saving" }));
+
     try {
       await rateStory(supabase, { story: item, rating });
+      setRatingState((s) => ({ ...s, [item.id]: "saved" }));
+      // Clear the confirmation after a beat; the button stays highlighted.
+      setTimeout(
+        () =>
+          setRatingState((s) => {
+            const next = { ...s };
+            delete next[item.id];
+            return next;
+          }),
+        2000
+      );
     } catch (err) {
       console.error("[war-room] could not save rating:", err);
+      // Roll the button back so it never shows a rating that wasn't stored.
+      setRatings((r) => ({ ...r, [item.id]: previous }));
+      setRatingState((s) => ({ ...s, [item.id]: "error" }));
     }
   }
 
@@ -241,6 +272,7 @@ export default function App() {
         onSelect={(c) => { setActiveCat(c); setShowAll(false); }}
         isLive={isLive}
         manualCount={manualCount}
+        topCount={topCount}
       />
 
       <FeedStatus
@@ -264,6 +296,7 @@ export default function App() {
             analysis={cards[item.id]}
             isLoading={loadingId === item.id}
             rating={ratings[item.id]}
+            ratingState={ratingState[item.id]}
             onRate={handleRate}
             onAssess={analyzeItem}
             onGenerate={setSelected}
