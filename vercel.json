@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "_comment": "Kerala desk, hourly: 5 queries x 24 = 120 NewsData credits/day.",
+      "path": "/api/news/refresh?tier=core",
+      "schedule": "0 * * * *"
+    },
+    {
+      "_comment": "National/world/sport, every 6h: 3 queries x 4 = 12 credits/day. Total 132 of 200.",
+      "path": "/api/news/refresh?tier=wide",
+      "schedule": "30 */6 * * *"
+    }
+  ]
+}
