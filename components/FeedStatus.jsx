@@ -20,11 +20,28 @@ export default function FeedStatus({ status, onRefresh, refreshing, error }) {
   const last = status.last;
   const feedErrors = Array.isArray(last?.errors) ? last.errors : [];
 
-  // Only show a countdown if a scheduler is demonstrably running. On a laptop
-  // there is no cron, so the old countdown promised refreshes that never came.
-  // If the last fetch is older than a few intervals, say so instead of lying.
-  const lastAgeMin = last ? (now - new Date(last.created_at)) / 60000 : Infinity;
-  const schedulerRunning = lastAgeMin <= REFRESH_MINUTES * 3;
+  // Only show a countdown if a scheduler is demonstrably running.
+  //
+  // "Was there a fetch recently?" is NOT enough — clicking Refresh now, or a
+  // one-off run, satisfies that while nothing is actually scheduled. A real
+  // scheduler produces fetches that RECUR at roughly the interval, so require:
+  //   1. the most recent scheduled fetch is fresh, and
+  //   2. the one before it lands about an interval earlier.
+  const schedulerRunning = (() => {
+    const scheduled = (status.recent || []).filter((r) => r.triggered_by === "cron");
+    if (scheduled.length < 2) return false;
+    const t0 = new Date(scheduled[0].created_at).getTime();
+    const t1 = new Date(scheduled[1].created_at).getTime();
+    const freshMin = (now.getTime() - t0) / 60000;
+    const gapMin = (t0 - t1) / 60000;
+    // The gap must resemble the interval. A burst of runs seconds apart is
+    // someone testing by hand, not a schedule.
+    return (
+      freshMin <= REFRESH_MINUTES * 2 &&
+      gapMin >= REFRESH_MINUTES * 0.5 &&
+      gapMin <= REFRESH_MINUTES * 2
+    );
+  })();
 
   return (
     <div className="fstat">
