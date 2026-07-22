@@ -1,4 +1,4 @@
-import { Globe2, Landmark, PenLine, Star, Trophy, Vote } from "lucide-react";
+import { Bookmark, Globe2, Landmark, PenLine, Star, Trophy, Vote } from "lucide-react";
 import { CATEGORIES } from "@/lib/constants";
 
 const CAT_ICONS = {
@@ -15,15 +15,16 @@ export default function CategoryTabs({
   isLive,
   manualCount = 0,
   topCount = 0,
+  markedCount = 0,
 }) {
   return (
     <nav className="tabs">
-      {/* Top stories first: what the ranker scored high, plus anything the
-          team explicitly marked Top. */}
+      {/* Top stories = what the ranker scored high. What YOU kept is a
+          separate thing, in the Marked tab. */}
       <button
         className={`tab tab-top ${activeCat === "top" ? "on" : ""}`}
         onClick={() => onSelect("top")}
-        title="High-priority stories: marked Top by the team, or scored 70+ by the ranker"
+        title="What the ranker scored 70+ in the last 24 hours"
       >
         <Star size={14} /> Top stories{topCount > 0 ? ` (${topCount})` : ""}
       </button>
@@ -46,6 +47,17 @@ export default function CategoryTabs({
           </button>
         );
       })}
+      {/* Your own shelf: things you marked, kept beyond the 24h feed window. */}
+      {markedCount > 0 && (
+        <button
+          className={`tab tab-marked ${activeCat === "marked" ? "on" : ""}`}
+          onClick={() => onSelect("marked")}
+          title="Stories you marked, with your notes. Kept beyond the 24h window."
+        >
+          <Bookmark size={14} /> Marked ({markedCount})
+        </button>
+      )}
+
       {/* Pasted headlines get their own tab so they stop sitting on top of
           the live feed forever. */}
       {manualCount > 0 && (

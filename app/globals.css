@@ -122,6 +122,8 @@ body { background: var(--paper); }
 
 .tab-top { border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .tab-top.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tab-marked { border-color: var(--warn); color: var(--warn); font-weight: 700; }
+.tab-marked.on { background: var(--warn); border-color: var(--warn); color: #fff; }
 .rate-note { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 4px; white-space: nowrap; }
 .rate-note.ok { color: var(--ok); }
 .rate-note.bad { color: var(--danger); }
@@ -140,6 +142,20 @@ body { background: var(--paper); }
 @media (max-width: 620px) {
   .rate { margin-left: 0; width: 100%; }
 }
+
+/* Your own note on a marked story */
+.note-box { margin: 8px 0 2px; }
+.note-add { display: inline-flex; align-items: center; gap: 5px; background: transparent; border: 1px dashed var(--line); border-radius: 7px; padding: 5px 10px; font-size: 11.5px; font-weight: 600; color: var(--faint); cursor: pointer; transition: border-color 200ms ease, color 200ms ease; }
+.note-add:hover { border-color: var(--ink); color: var(--ink); }
+.note-read { display: flex; align-items: flex-start; gap: 6px; width: 100%; text-align: left; background: var(--warn-bg); border: 1px solid transparent; border-left: 3px solid var(--warn); border-radius: 7px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; color: var(--ink); cursor: pointer; font-family: inherit; }
+.note-read:hover { border-color: var(--warn); }
+.note-read svg { flex: 0 0 auto; margin-top: 2px; color: var(--warn); }
+.note-input { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--paper); color: var(--ink); resize: vertical; }
+.note-input:focus { outline: none; border-color: var(--ink); }
+.note-actions { display: flex; gap: 6px; margin-top: 6px; }
+.note-save { background: var(--ink); color: var(--paper); border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.note-cancel { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.marked-meta { font-size: 11px; color: var(--faint); font-style: italic; }
 
 /* "Show all" control under the feed */
 .show-more { width: 100%; background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; margin-top: 4px; transition: border-color 200ms ease, color 200ms ease; }

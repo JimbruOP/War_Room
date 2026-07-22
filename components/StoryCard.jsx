@@ -11,6 +11,7 @@ import {
   Gauge,
   Loader2,
   Send,
+  StickyNote,
   Trash2,
 } from "lucide-react";
 import RiskTag from "./RiskTag";
@@ -32,10 +33,13 @@ export default function StoryCard({
   onAssess,
   onGenerate,
   onRemove,
+  onSaveNote,
 }) {
   // Assessed cards start collapsed. Previously every assessment stayed open
   // forever once it reloaded from the database, which buried the feed.
   const [open, setOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [draftNote, setDraftNote] = useState(item.note || "");
   const assessed = analysis && !analysis.error;
 
   return (
@@ -113,6 +117,53 @@ export default function StoryCard({
           </div>
         )}
       </div>
+      {/* Your own note. Only offered once a story is marked, and always
+          visible afterwards so it can be read back later. */}
+      {onSaveNote && rating && (
+        <div className="note-box">
+          {editingNote ? (
+            <>
+              <textarea
+                className="note-input"
+                value={draftNote}
+                onChange={(e) => setDraftNote(e.target.value)}
+                placeholder="Why does this matter? What's the angle?"
+                rows={2}
+                autoFocus
+              />
+              <div className="note-actions">
+                <button
+                  className="note-save"
+                  onClick={() => {
+                    onSaveNote(item, draftNote.trim());
+                    setEditingNote(false);
+                  }}
+                >
+                  Save note
+                </button>
+                <button
+                  className="note-cancel"
+                  onClick={() => {
+                    setDraftNote(item.note || "");
+                    setEditingNote(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : item.note ? (
+            <button className="note-read" onClick={() => setEditingNote(true)} title="Click to edit">
+              <StickyNote size={12} /> <span>{item.note}</span>
+            </button>
+          ) : (
+            <button className="note-add" onClick={() => setEditingNote(true)}>
+              <StickyNote size={12} /> Add a note
+            </button>
+          )}
+        </div>
+      )}
+
       {isLoading && (
         <div className="loading-row">
           <Loader2 size={16} className="spin" /> Reading the room…

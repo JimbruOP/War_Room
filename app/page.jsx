@@ -19,6 +19,8 @@ import {
   fetchFeedStatus,
   deleteStory,
   fetchMyRatings,
+  fetchMarked,
+  saveNote,
   rateStory,
   insertManualStory,
   saveAnalysis,
@@ -26,7 +28,7 @@ import {
 } from "@/lib/db";
 
 const TOP_N = 25;
-// A story is a "top story" if the team marked it Top, or the ranker scored it high.
+// Top stories = the ranker's picks only. Your own picks live in the Marked tab.
 const TOP_SCORE_THRESHOLD = 70;
 
 export default function App() {
@@ -50,6 +52,7 @@ export default function App() {
   const [showAll, setShowAll] = useState(false);
   const [ratings, setRatings] = useState({}); // storyId -> top|fine|ignore
   const [ratingState, setRatingState] = useState({}); // storyId -> saving|saved|error
+  const [marked, setMarked] = useState([]); // your saved shelf, not limited to 24h
 
   // Load lens, user, live stories, and any assessments already saved.
   useEffect(() => {
@@ -96,6 +99,13 @@ export default function App() {
       }
 
       try {
+        const m = await fetchMarked(supabase);
+        if (!cancelled) setMarked(m);
+      } catch (err) {
+        console.error("[war-room] failed to load marked stories:", err);
+      }
+
+      try {
         const s = await fetchFeedStatus(supabase);
         if (!cancelled) setStatus(s);
       } catch (err) {
@@ -115,22 +125,19 @@ export default function App() {
 
   const manualCount = useMemo(() => stories.filter((s) => s.cat === "manual").length, [stories]);
 
+  // Top stories is purely the ranker's view. What YOU kept lives in Marked.
   const topCount = useMemo(
-    () =>
-      stories.filter(
-        (s) => ratings[s.id] === "top" || (s.triage_score ?? 0) >= TOP_SCORE_THRESHOLD
-      ).length,
-    [stories, ratings]
+    () => stories.filter((s) => (s.triage_score ?? 0) >= TOP_SCORE_THRESHOLD).length,
+    [stories]
   );
 
   const filtered = useMemo(() => {
+    if (activeCat === "marked") return marked;
     if (activeCat === "top")
-      return stories.filter(
-        (s) => ratings[s.id] === "top" || (s.triage_score ?? 0) >= TOP_SCORE_THRESHOLD
-      );
+      return stories.filter((s) => (s.triage_score ?? 0) >= TOP_SCORE_THRESHOLD);
     if (activeCat === "all") return stories;
     return stories.filter((f) => f.cat === activeCat);
-  }, [activeCat, stories, ratings]);
+  }, [activeCat, stories, marked]);
 
   // Show the best TOP_N by triage score; the rest sit behind "Show all".
   const feed = showAll ? filtered : filtered.slice(0, TOP_N);
@@ -175,6 +182,7 @@ export default function App() {
     try {
       await rateStory(supabase, { story: item, rating });
       setRatingState((s) => ({ ...s, [item.id]: "saved" }));
+      refreshMarked();
       // Clear the confirmation after a beat; the button stays highlighted.
       setTimeout(
         () =>
@@ -190,6 +198,23 @@ export default function App() {
       // Roll the button back so it never shows a rating that wasn't stored.
       setRatings((r) => ({ ...r, [item.id]: previous }));
       setRatingState((s) => ({ ...s, [item.id]: "error" }));
+    }
+  }
+
+  async function handleSaveNote(item, note) {
+    setMarked((m) => m.map((x) => (x.id === item.id ? { ...x, note } : x)));
+    try {
+      await saveNote(supabase, item.id, note);
+    } catch (err) {
+      console.error("[war-room] could not save note:", err);
+    }
+  }
+
+  async function refreshMarked() {
+    try {
+      setMarked(await fetchMarked(supabase));
+    } catch (err) {
+      console.error("[war-room] could not reload marked:", err);
     }
   }
 
@@ -273,6 +298,7 @@ export default function App() {
         isLive={isLive}
         manualCount={manualCount}
         topCount={topCount}
+        markedCount={marked.length}
       />
 
       <FeedStatus
@@ -301,6 +327,7 @@ export default function App() {
             onAssess={analyzeItem}
             onGenerate={setSelected}
             onRemove={item.is_manual ? handleRemoveStory : undefined}
+            onSaveNote={handleSaveNote}
           />
         ))}
 
