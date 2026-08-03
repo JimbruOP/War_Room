@@ -1,9 +1,3 @@
 {
-  "crons": [
-    {
-      "_comment": "Every 5 minutes. RSS is free and triage only scores NEW stories, so polling faster costs nothing extra — the same ~22 stories/hour arrive either way, just noticed sooner. Not worth going below 5 min: the outlets' own publish-to-feed lag is about that long, so faster polling would only re-read identical files. Vercel Hobby runs cron daily only — see DEPLOY.md for the free external scheduler.",
-      "path": "/api/news/refresh",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  "_comment": "News fetching is driven by an external scheduler (cron-job.org) hitting /api/news/refresh every 5 minutes with the CRON_SECRET header. Vercel Hobby only allows daily cron, so we do not use Vercel Cron here. See DEPLOY.md."
 }
