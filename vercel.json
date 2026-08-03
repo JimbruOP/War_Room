@@ -1,3 +1,1 @@
-{
-  "_comment": "News fetching is driven by an external scheduler (cron-job.org) hitting /api/news/refresh every 5 minutes with the CRON_SECRET header. Vercel Hobby only allows daily cron, so we do not use Vercel Cron here. See DEPLOY.md."
-}
+{}
