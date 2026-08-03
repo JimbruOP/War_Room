@@ -126,6 +126,48 @@ export default function App() {
     };
   }, [supabase]);
 
+  // Re-read the database so an open tab picks up what the cron has fetched.
+  // This is READ-ONLY — it does not trigger an RSS/GPT fetch (the cron does
+  // that), so it costs nothing. Runs every 90s and whenever the tab regains
+  // focus, which covers the "came back and it was stale" case directly.
+  useEffect(() => {
+    if (!supabase) return;
+
+    async function reload() {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      try {
+        const rows = await fetchStories(supabase);
+        if (!rows?.length) return;
+        setStories(rows.map(toFeedItem));
+        setIsLive(true);
+        const ids = rows.map((r) => r.id);
+        const [saved, mine, s] = await Promise.all([
+          fetchAnalyses(supabase, ids),
+          fetchMyRatings(supabase, ids).catch(() => ({})),
+          fetchFeedStatus(supabase).catch(() => null),
+        ]);
+        setCards((prev) => ({ ...saved, ...prev })); // keep any in-session assessment
+        setRatings(mine);
+        if (s) setStatus(s);
+      } catch (err) {
+        console.error("[war-room] auto-reload failed:", err);
+      }
+    }
+
+    const interval = setInterval(reload, 90000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", reload);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", reload);
+    };
+  }, [supabase]);
+
   const manualCount = useMemo(() => stories.filter((s) => s.cat === "manual").length, [stories]);
 
   // Top stories is purely the ranker's view. What YOU kept lives in Marked.
