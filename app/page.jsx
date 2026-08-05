@@ -7,6 +7,7 @@ import CategoryTabs from "@/components/CategoryTabs";
 import StoryCard from "@/components/StoryCard";
 import LensModal from "@/components/LensModal";
 import StatementModal from "@/components/StatementModal";
+import SettingsModal from "@/components/SettingsModal";
 import { DEFAULT_LENS } from "@/lib/constants";
 import { DEMO_FEED } from "@/lib/demoFeed";
 import FeedStatus from "@/components/FeedStatus";
@@ -38,6 +39,8 @@ export default function App() {
 
   const [lens, setLens] = useState(DEFAULT_LENS);
   const [userEmail, setUserEmail] = useState(null);
+  const [displayName, setDisplayName] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
   const [showLens, setShowLens] = useState(false);
   const [activeCat, setActiveCat] = useState("top");
   const [manualText, setManualText] = useState("");
@@ -118,7 +121,10 @@ export default function App() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!cancelled) setUserEmail(user?.email ?? null);
+      if (!cancelled) {
+        setUserEmail(user?.email ?? null);
+        setDisplayName(user?.user_metadata?.display_name ?? "");
+      }
     })();
 
     return () => {
@@ -290,6 +296,13 @@ export default function App() {
     }
   }
 
+  async function handleSaveName(name) {
+    setDisplayName(name);
+    if (!supabase) return;
+    const { error } = await supabase.auth.updateUser({ data: { display_name: name } });
+    if (error) throw error;
+  }
+
   async function handleSignOut() {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -345,7 +358,7 @@ export default function App() {
         candidate={lens.candidate}
         onOpenLens={() => setShowLens(true)}
         userEmail={userEmail}
-        onSignOut={handleSignOut}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       <ManualInput
@@ -405,6 +418,15 @@ export default function App() {
 
       {showLens && (
         <LensModal lens={lens} setLens={handleSaveLens} onClose={() => setShowLens(false)} />
+      )}
+      {showSettings && (
+        <SettingsModal
+          email={userEmail}
+          displayName={displayName}
+          onSaveName={handleSaveName}
+          onSignOut={handleSignOut}
+          onClose={() => setShowSettings(false)}
+        />
       )}
       {selected && (
         <StatementModal

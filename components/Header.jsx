@@ -1,6 +1,6 @@
-import { LogOut, Radar, Settings } from "lucide-react";
+import { Radar, Settings, SlidersHorizontal } from "lucide-react";
 
-export default function Header({ candidate, onOpenLens, userEmail, onSignOut }) {
+export default function Header({ candidate, onOpenLens, userEmail, onOpenSettings }) {
   return (
     <header className="wr-head">
       <div className="brand">
@@ -14,11 +14,16 @@ export default function Header({ candidate, onOpenLens, userEmail, onSignOut }) 
       </div>
       <div className="head-actions">
         <button className="lens-btn" onClick={onOpenLens}>
-          <Settings size={15} /> Political lens
+          <SlidersHorizontal size={15} /> Political lens
         </button>
         {userEmail && (
-          <button className="lens-btn" onClick={onSignOut} title={userEmail} aria-label="Sign out">
-            <LogOut size={15} /> Sign out
+          <button
+            className="lens-btn icon-only"
+            onClick={onOpenSettings}
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Settings size={16} />
           </button>
         )}
       </div>
