@@ -303,3 +303,13 @@ body { background: var(--paper); }
 .toggle.on .toggle-text { color: var(--ink); }
 .signout-btn { width: 100%; margin-top: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; color: var(--danger); cursor: pointer; min-height: 44px; transition: border-color 200ms ease; }
 .signout-btn:hover { border-color: var(--danger); }
+
+/* --- Install-to-home-screen banner --- */
+.install-bar { display: flex; align-items: center; gap: 10px; background: var(--ink); color: var(--paper); border-radius: 10px; padding: 10px 12px; margin: 14px 0 2px; }
+.install-icon { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,0.12); }
+.install-text { flex: 1; font-size: 12.5px; line-height: 1.4; }
+.install-text b { font-weight: 700; }
+.install-btn { flex: 0 0 auto; background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 38px; }
+.install-btn:hover { background: var(--accent-ink); }
+.install-x { flex: 0 0 auto; background: transparent; border: none; color: var(--paper); opacity: 0.7; cursor: pointer; padding: 4px; display: grid; place-items: center; }
+.install-x:hover { opacity: 1; }

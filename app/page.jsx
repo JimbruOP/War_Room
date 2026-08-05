@@ -8,6 +8,7 @@ import StoryCard from "@/components/StoryCard";
 import LensModal from "@/components/LensModal";
 import StatementModal from "@/components/StatementModal";
 import SettingsModal from "@/components/SettingsModal";
+import InstallPrompt from "@/components/InstallPrompt";
 import { DEFAULT_LENS } from "@/lib/constants";
 import { DEMO_FEED } from "@/lib/demoFeed";
 import FeedStatus from "@/components/FeedStatus";
@@ -360,6 +361,8 @@ export default function App() {
         userEmail={userEmail}
         onOpenSettings={() => setShowSettings(true)}
       />
+
+      <InstallPrompt />
 
       <ManualInput
         value={manualText}
