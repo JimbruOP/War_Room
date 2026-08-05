@@ -39,7 +39,7 @@ export default function App() {
   const [lens, setLens] = useState(DEFAULT_LENS);
   const [userEmail, setUserEmail] = useState(null);
   const [showLens, setShowLens] = useState(false);
-  const [activeCat, setActiveCat] = useState("all");
+  const [activeCat, setActiveCat] = useState("top");
   const [manualText, setManualText] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [stories, setStories] = useState(DEMO_FEED);
@@ -180,6 +180,12 @@ export default function App() {
     if (activeCat === "marked") return marked;
     if (activeCat === "top")
       return stories.filter((s) => (s.triage_score ?? 0) >= TOP_SCORE_THRESHOLD);
+    // Latest = newest first, ignoring rating. The DB default order is by score,
+    // so re-sort a copy here by publish time.
+    if (activeCat === "latest")
+      return [...stories].sort(
+        (a, b) => new Date(b.published || 0) - new Date(a.published || 0)
+      );
     if (activeCat === "all") return stories;
     return stories.filter((f) => f.cat === activeCat);
   }, [activeCat, stories, marked]);

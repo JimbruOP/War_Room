@@ -1,4 +1,4 @@
-import { Bookmark, Globe2, Landmark, PenLine, Star, Trophy, Vote } from "lucide-react";
+import { Bookmark, Clock, Globe2, Landmark, PenLine, Star, Trophy, Vote } from "lucide-react";
 import { CATEGORIES } from "@/lib/constants";
 
 const CAT_ICONS = {
@@ -27,6 +27,15 @@ export default function CategoryTabs({
         title="What the ranker scored 70+ in the last 24 hours"
       >
         <Star size={14} /> Top stories{topCount > 0 ? ` (${topCount})` : ""}
+      </button>
+
+      {/* Newest-first, ignoring rating — for a straight chronological read. */}
+      <button
+        className={`tab ${activeCat === "latest" ? "on" : ""}`}
+        onClick={() => onSelect("latest")}
+        title="Newest stories first, regardless of score"
+      >
+        <Clock size={14} /> Latest
       </button>
 
       <button
