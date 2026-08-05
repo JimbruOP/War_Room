@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchAllFeeds } from "@/lib/rss";
 import { triageStories } from "@/lib/triage";
+import { sendHighPriorityAlerts, NOTIFY_THRESHOLD } from "@/lib/notify";
 import { DEFAULT_LENS } from "@/lib/constants";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -132,6 +133,36 @@ export async function GET(request) {
       triageErrors.push(`triage: ${err.message}`);
     }
 
+    // ---- Push alerts for newly-scored high-priority stories ----
+    let notified = 0;
+    try {
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data: hot } = await supabase
+        .from("stories")
+        .select("id, headline, url")
+        .gte("triage_score", NOTIFY_THRESHOLD)
+        .is("notified_at", null)
+        .gte("published_at", since)
+        .order("triage_score", { ascending: false })
+        .limit(10);
+
+      if (hot?.length) {
+        const origin = new URL(request.url).origin;
+        const result = await sendHighPriorityAlerts(hot, origin);
+        if (!result.skipped) {
+          // Mark them so they never alert again, even across a rescore.
+          await supabase
+            .from("stories")
+            .update({ notified_at: new Date().toISOString() })
+            .in("id", hot.map((s) => s.id));
+          notified = result.sent;
+        }
+      }
+    } catch (err) {
+      console.error("[refresh] push alert failed", err);
+      triageErrors.push(`notify: ${err.message}`);
+    }
+
     await supabase.from("fetch_log").insert({
       tier: "rss",
       queries_used: feedCount, // feeds polled; RSS has no quota, kept for diagnostics
@@ -144,6 +175,7 @@ export async function GET(request) {
     return NextResponse.json({
       ok: true,
       feeds: feedCount,
+      notified,
       fetched: stories.length,
       inserted,
       triaged,
