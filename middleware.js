@@ -50,7 +50,10 @@ export async function middleware(request) {
 export const config = {
   // Run on everything except Next internals, static assets, and the cron news
   // endpoint (which has no user session and guards itself with CRON_SECRET).
+  // Excludes Next internals, the cron endpoint, and public assets — including
+  // the OneSignal service workers and PWA manifest, which must be reachable
+  // WITHOUT auth or the browser can't register push / install the app.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/news|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/news|OneSignalSDKWorker.js|OneSignalSDKUpdaterWorker.js|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|js)$).*)",
   ],
 };
