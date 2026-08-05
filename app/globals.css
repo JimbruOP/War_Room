@@ -239,3 +239,47 @@ body { background: var(--paper); }
   .angles { grid-template-columns: 1fr; }
   .feed-note { display: none; }
 }
+
+/* ============ Mobile declutter (phones only, <= 620px) ============ */
+@media (max-width: 620px) {
+  .wr { padding: 0 12px 48px; }
+
+  /* Header: keep the brand, shrink the action buttons */
+  .wr-head { padding: 14px 0 12px; }
+  .brand-mark { width: 34px; height: 34px; }
+  .brand-name { font-size: 15px; }
+  .brand-sub { font-size: 11px; }
+  .head-actions { gap: 6px; }
+  .lens-btn { padding: 8px 10px; font-size: 12px; }
+
+  /* Tabs: one tidy horizontal-scroll row instead of a messy wrap */
+  .tabs { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 12px 0 6px;
+          -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; padding: 8px 12px; min-height: 38px; }
+
+  /* Status bar: tighter, clean wrap, full-width refresh */
+  .fstat { padding: 8px 10px; gap: 6px; }
+  .fstat-row { gap: 6px 10px; }
+  .fstat-item { font-size: 11px; }
+  .fstat-btn { margin-left: 0; width: 100%; justify-content: center; min-height: 40px; }
+
+  /* Cards: a touch tighter */
+  .card { padding: 13px; border-radius: 11px; }
+  .headline { font-size: 15px; }
+  .src-link { margin-bottom: 10px; }
+
+  /* Card actions: Assess + Save share the top row, Priority gets its own
+     full-width row with evenly-sized, thumb-friendly buttons. */
+  .card-actions { gap: 8px; }
+  .assess-btn { flex: 1 1 auto; justify-content: center; min-height: 42px; }
+  .save-story { min-height: 42px; }
+  .rate { margin-left: 0; width: 100%; flex-wrap: wrap; gap: 5px; }
+  .rate-label { width: 100%; margin: 0 0 1px; }
+  .rate-btn { flex: 1 1 0; min-height: 40px; justify-content: center; }
+  .rate-note { width: 100%; }
+
+  /* Expanded analysis stacks full width */
+  .angles { grid-template-columns: 1fr; }
+  .summary-toggle { min-height: 32px; }
+}
