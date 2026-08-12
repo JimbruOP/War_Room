@@ -326,3 +326,9 @@ body { background: var(--paper); }
 .cap-ml { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
 .cap-ml-head { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--warn); margin-bottom: 8px; }
 .cap-ml-text { font-size: 15.5px; line-height: 1.7; margin: 0; white-space: pre-wrap; }
+
+/* --- Caption save + history --- */
+.cap-save { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.cap-save .studio-input { margin-bottom: 8px; }
+.cap-title { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.cap-date { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); margin-left: 8px; }
