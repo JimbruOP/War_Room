@@ -18,38 +18,40 @@ import {
 import { DEFAULT_LENS } from "@/lib/constants";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { fetchLens } from "@/lib/lens";
+import { srtToText } from "@/lib/srt";
 import { generateCaptions, translateCaption } from "@/lib/api";
-import { saveCaption, fetchCaptions, deleteCaption } from "@/lib/db";
+import { saveCaptionSet, fetchCaptions, updateCaptionTitle, deleteCaption } from "@/lib/db";
 
 const STYLES = ["warm and genuine", "short and punchy", "inspirational", "informative"];
 
-function hashList(hashtags) {
-  return (hashtags || []).map((h) => (h.startsWith("#") ? h : "#" + h));
-}
-function fmtDate(iso) {
+const hashList = (h) => (h || []).map((x) => (x.startsWith("#") ? x : "#" + x));
+const fmtDate = (iso) => {
   try {
     return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "";
   }
+};
+function defaultTitle(source) {
+  const clean = srtToText(source || "");
+  if (!clean) return "Untitled reel";
+  return clean.length > 60 ? clean.slice(0, 60).trim() + "…" : clean;
 }
 
 export default function StudioPage() {
   const supabase = useMemo(() => createSupabaseBrowser(), []);
   const [lens, setLens] = useState(DEFAULT_LENS);
-  const [view, setView] = useState("write"); // write | saved
+  const [view, setView] = useState("write");
 
-  // generator state
   const [source, setSource] = useState("");
   const [style, setStyle] = useState(STYLES[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [captions, setCaptions] = useState([]);
+  const [autoSaved, setAutoSaved] = useState(false);
   const [copied, setCopied] = useState(null);
-  const [ml, setMl] = useState({}); // index -> {loading,text}
-  const [saving, setSaving] = useState({}); // index -> {open,title,busy,done}
+  const [ml, setMl] = useState({}); // key -> {loading,text}
 
-  // history state
   const [savedList, setSavedList] = useState([]);
 
   useEffect(() => {
@@ -72,10 +74,25 @@ export default function StudioPage() {
     setError(null);
     setCaptions([]);
     setMl({});
-    setSaving({});
+    setAutoSaved(false);
     try {
       const res = await generateCaptions({ lens, source, style });
-      setCaptions(res.captions || []);
+      const options = res.captions || [];
+      setCaptions(options);
+      // Auto-save the whole generation as one dated entry.
+      try {
+        const row = await saveCaptionSet(supabase, {
+          title: defaultTitle(source),
+          source: srtToText(source).slice(0, 2000),
+          options,
+        });
+        if (row) {
+          setSavedList((list) => [{ ...row, options }, ...list]);
+          setAutoSaved(true);
+        }
+      } catch (e) {
+        console.error("[studio] auto-save failed:", e);
+      }
     } catch (e) {
       setError(e.message || "Could not generate captions.");
     } finally {
@@ -89,41 +106,62 @@ export default function StudioPage() {
     setTimeout(() => setCopied(null), 1500);
   }
 
-  async function toMalayalam(i, cap) {
-    setMl((m) => ({ ...m, [i]: { loading: true } }));
+  async function toMalayalam(key, text) {
+    setMl((m) => ({ ...m, [key]: { loading: true } }));
     try {
-      const res = await translateCaption(cap.text);
-      setMl((m) => ({ ...m, [i]: { loading: false, text: res.malayalam } }));
+      const res = await translateCaption(text);
+      setMl((m) => ({ ...m, [key]: { loading: false, text: res.malayalam } }));
     } catch {
-      setMl((m) => ({ ...m, [i]: { loading: false, error: true } }));
+      setMl((m) => ({ ...m, [key]: { loading: false, error: true } }));
     }
   }
 
-  async function doSave(i, cap) {
-    const s = saving[i] || {};
-    setSaving((v) => ({ ...v, [i]: { ...s, busy: true } }));
+  async function renameSaved(id, title) {
+    setSavedList((list) => list.map((x) => (x.id === id ? { ...x, title } : x)));
     try {
-      const row = await saveCaption(supabase, {
-        title: s.title,
-        text: cap.text,
-        hashtags: cap.hashtags,
-        malayalam: ml[i]?.text ?? null,
-        style: cap.style,
-      });
-      setSaving((v) => ({ ...v, [i]: { open: false, busy: false, done: true } }));
-      if (row) setSavedList((list) => [row, ...list]);
-    } catch {
-      setSaving((v) => ({ ...v, [i]: { ...s, busy: false, error: true } }));
-    }
+      await updateCaptionTitle(supabase, id, title);
+    } catch {}
   }
-
   async function removeSaved(id) {
     setSavedList((list) => list.filter((x) => x.id !== id));
     try {
       await deleteCaption(supabase, id);
-    } catch {
-      /* ignore */
-    }
+    } catch {}
+  }
+
+  function OptionBlock({ opt, keyBase }) {
+    const tags = hashList(opt.hashtags);
+    const full = opt.text + (tags.length ? "\n\n" + tags.join(" ") : "");
+    const m = ml[keyBase] || {};
+    return (
+      <div className="cap-opt">
+        <div className="cap-opt-head">
+          <span className="cap-style">{opt.style}</span>
+          <button className="copy" onClick={() => copy(full, keyBase)} style={{ marginLeft: "auto" }}>
+            {copied === keyBase ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
+          </button>
+        </div>
+        <p className="cap-text">{opt.text}</p>
+        {tags.length > 0 && <p className="cap-tags">{tags.join(" ")}</p>}
+        {!m.text && (
+          <button className="assess-btn" onClick={() => toMalayalam(keyBase, opt.text)} disabled={m.loading}>
+            {m.loading ? <><Loader2 size={14} className="spin" /> Translating…</> : <><Languages size={14} /> Malayalam draft</>}
+          </button>
+        )}
+        {m.error && <div className="err-note">Couldn&apos;t translate — try again.</div>}
+        {m.text && (
+          <div className="cap-ml">
+            <div className="cap-ml-head">
+              <Languages size={12} /> Malayalam (rough — please review)
+              <button className="copy" onClick={() => copy(m.text, keyBase + "ml")} style={{ marginLeft: "auto" }}>
+                {copied === keyBase + "ml" ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
+              </button>
+            </div>
+            <p className="cap-ml-text">{m.text}</p>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -186,69 +224,19 @@ export default function StudioPage() {
               )}
             </button>
             {error && <div className="err-note">{error}</div>}
+            {autoSaved && (
+              <div className="rate-note ok" style={{ marginTop: 8 }}>
+                <Check size={12} /> Saved to your library — rename it under Saved.
+              </div>
+            )}
           </section>
 
           <main className="feed">
-            {captions.map((cap, i) => {
-              const tags = hashList(cap.hashtags);
-              const fullText = cap.text + (tags.length ? "\n\n" + tags.join(" ") : "");
-              const m = ml[i] || {};
-              const sv = saving[i] || {};
-              return (
-                <article className="card" key={i}>
-                  <div className="card-top">
-                    <span className="cap-style">{cap.style}</span>
-                    <button className="copy" onClick={() => copy(fullText, "en" + i)} style={{ marginLeft: "auto" }}>
-                      {copied === "en" + i ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
-                    </button>
-                  </div>
-                  <p className="cap-text">{cap.text}</p>
-                  {tags.length > 0 && <p className="cap-tags">{tags.join(" ")}</p>}
-
-                  <div className="card-actions">
-                    {!m.text && (
-                      <button className="assess-btn" onClick={() => toMalayalam(i, cap)} disabled={m.loading}>
-                        {m.loading ? <><Loader2 size={14} className="spin" /> Translating…</> : <><Languages size={14} /> Malayalam draft</>}
-                      </button>
-                    )}
-                    {!sv.done && (
-                      <button className="save-story" onClick={() => setSaving((v) => ({ ...v, [i]: { ...sv, open: !sv.open } }))}>
-                        <Bookmark size={14} /> Save
-                      </button>
-                    )}
-                    {sv.done && <span className="rate-note ok"><Check size={12} /> Saved</span>}
-                  </div>
-
-                  {m.error && <div className="err-note">Couldn&apos;t translate — try again.</div>}
-                  {m.text && (
-                    <div className="cap-ml">
-                      <div className="cap-ml-head">
-                        <Languages size={12} /> Malayalam (rough — please review)
-                        <button className="copy" onClick={() => copy(m.text, "ml" + i)} style={{ marginLeft: "auto" }}>
-                          {copied === "ml" + i ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
-                        </button>
-                      </div>
-                      <p className="cap-ml-text">{m.text}</p>
-                    </div>
-                  )}
-
-                  {sv.open && !sv.done && (
-                    <div className="cap-save">
-                      <input
-                        className="studio-input"
-                        placeholder="What is this for? e.g. Independence Day reel"
-                        value={sv.title || ""}
-                        onChange={(e) => setSaving((v) => ({ ...v, [i]: { ...sv, title: e.target.value } }))}
-                        autoFocus
-                      />
-                      <button className="set-save" onClick={() => doSave(i, cap)} disabled={sv.busy}>
-                        {sv.busy ? <><Loader2 size={13} className="spin" /> Saving…</> : "Save to library"}
-                      </button>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+            {captions.map((cap, i) => (
+              <article className="card" key={i}>
+                <OptionBlock opt={cap} keyBase={"w" + i} />
+              </article>
+            ))}
           </main>
         </>
       )}
@@ -257,42 +245,30 @@ export default function StudioPage() {
         <main className="feed" style={{ marginTop: 10 }}>
           {savedList.length === 0 && (
             <div className="err-note" style={{ color: "var(--muted)" }}>
-              No saved captions yet. Generate one and tap Save.
+              Nothing saved yet. Every generation is saved here automatically.
             </div>
           )}
-          {savedList.map((c) => {
-            const tags = hashList(c.hashtags);
-            const fullText = c.caption_text + (tags.length ? "\n\n" + tags.join(" ") : "");
-            return (
-              <article className="card" key={c.id}>
-                <div className="card-top">
-                  <span className="cap-title">{c.title}</span>
-                  <span className="cap-date">
-                    <Calendar size={11} /> {fmtDate(c.created_at)}
-                  </span>
-                  <button className="card-x" onClick={() => removeSaved(c.id)} aria-label="Delete" style={{ marginLeft: "auto" }}>
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-                <p className="cap-text">{c.caption_text}</p>
-                {tags.length > 0 && <p className="cap-tags">{tags.join(" ")}</p>}
-                <button className="copy" onClick={() => copy(fullText, "sv" + c.id)}>
-                  {copied === "sv" + c.id ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy caption</>}
+          {savedList.map((entry) => (
+            <article className="card" key={entry.id}>
+              <div className="card-top">
+                <input
+                  className="cap-title-input"
+                  defaultValue={entry.title}
+                  onBlur={(e) => renameSaved(entry.id, e.target.value)}
+                  aria-label="Title"
+                />
+                <span className="cap-date">
+                  <Calendar size={11} /> {fmtDate(entry.created_at)}
+                </span>
+                <button className="card-x" onClick={() => removeSaved(entry.id)} aria-label="Delete">
+                  <Trash2 size={13} />
                 </button>
-                {c.malayalam && (
-                  <div className="cap-ml">
-                    <div className="cap-ml-head">
-                      <Languages size={12} /> Malayalam
-                      <button className="copy" onClick={() => copy(c.malayalam, "svml" + c.id)} style={{ marginLeft: "auto" }}>
-                        {copied === "svml" + c.id ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
-                      </button>
-                    </div>
-                    <p className="cap-ml-text">{c.malayalam}</p>
-                  </div>
-                )}
-              </article>
-            );
-          })}
+              </div>
+              {entry.options.map((opt, j) => (
+                <OptionBlock key={j} opt={opt} keyBase={"s" + entry.id + j} />
+              ))}
+            </article>
+          ))}
         </main>
       )}
     </div>
