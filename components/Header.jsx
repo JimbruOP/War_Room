@@ -1,4 +1,5 @@
-import { Radar, Settings, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { Clapperboard, Radar, Settings, SlidersHorizontal } from "lucide-react";
 
 export default function Header({ candidate, onOpenLens, userEmail, onOpenSettings }) {
   return (
@@ -13,6 +14,9 @@ export default function Header({ candidate, onOpenLens, userEmail, onOpenSetting
         </div>
       </div>
       <div className="head-actions">
+        <Link className="lens-btn" href="/studio" title="Instagram caption studio">
+          <Clapperboard size={15} /> Captions
+        </Link>
         <button className="lens-btn" onClick={onOpenLens}>
           <SlidersHorizontal size={15} /> Political lens
         </button>
