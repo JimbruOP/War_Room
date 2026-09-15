@@ -318,7 +318,10 @@ export default function StudioPage() {
                     onBlur={(e) => renameSaved(entry.id, e.target.value)}
                     aria-label="Title"
                   />
-                  <span className="cap-date"><Calendar size={11} /> {fmtDate(entry.created_at)}</span>
+                  <span className="cap-date">
+                    <Calendar size={11} /> {fmtDate(entry.created_at)}
+                    {entry.created_by_name ? ` · by ${entry.created_by_name}` : ""}
+                  </span>
                   <button className="card-x" onClick={() => removeSaved(entry.id)} aria-label="Delete"><Trash2 size={13} /></button>
                 </div>
                 <p className="cap-text">{entry.caption_text}</p>

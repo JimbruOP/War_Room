@@ -139,7 +139,7 @@ export async function GET(request) {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       const { data: hot } = await supabase
         .from("stories")
-        .select("id, headline, url")
+        .select("id, headline, headline_en, url")
         .gte("triage_score", NOTIFY_THRESHOLD)
         .is("notified_at", null)
         .gte("published_at", since)

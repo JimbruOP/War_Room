@@ -97,6 +97,8 @@ body { background: var(--paper); }
 .time { color: var(--muted); }
 .risk-mini { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; text-transform: capitalize; }
 .headline { font-size: 15.5px; line-height: 1.45; font-weight: 600; margin: 0 0 8px; }
+.headline-en { display: block; font-size: 13.5px; line-height: 1.4; color: var(--muted); margin: -3px 0 9px; padding-left: 9px; border-left: 2px solid var(--line); }
+.tr-label { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-ink); margin-right: 6px; vertical-align: 1px; }
 .src-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--accent-ink); text-decoration: none; border-bottom: 1px solid transparent; margin: 0 0 12px; transition: border-color 200ms ease; }
 .src-link:hover { border-bottom-color: var(--accent-ink); }
 

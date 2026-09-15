@@ -68,6 +68,15 @@ export default function StoryCard({
 
       <p className="headline">{item.headline}</p>
 
+      {/* Literal English translation, shown only for stories that matter enough
+          (>=80) so the team can skim Malayalam headlines without reading them. */}
+      {item.headline_en && item.triage_score >= 80 && (
+        <p className="headline-en">
+          <span className="tr-label">Translation</span>
+          {item.headline_en}
+        </p>
+      )}
+
       {item.url && (
         <a
           className="src-link"
