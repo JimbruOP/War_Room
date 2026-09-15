@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchAllFeeds } from "@/lib/rss";
-import { triageStories } from "@/lib/triage";
+import { triageStories, translateHeadlines } from "@/lib/triage";
 import { sendHighPriorityAlerts, NOTIFY_THRESHOLD } from "@/lib/notify";
 import { DEFAULT_LENS } from "@/lib/constants";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
@@ -131,6 +131,37 @@ export async function GET(request) {
     } catch (err) {
       console.error("[refresh] triage failed", err);
       triageErrors.push(`triage: ${err.message}`);
+    }
+
+    // ---- Translation fallback ----
+    // The feed shows an English translation for >=80 Malayalam stories. Triage
+    // usually fills this in for free, but gpt-4o-mini occasionally drops it, so
+    // guarantee it here with a focused translate call for any that are missing.
+    try {
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data: pending } = await supabase
+        .from("stories")
+        .select("id, headline")
+        .gte("triage_score", 80)
+        .is("headline_en", null)
+        .gte("published_at", since)
+        .limit(40);
+
+      // Only Malayalam-script headlines actually need translating.
+      const ml = (pending || []).filter((s) => /[ഀ-ൿ]/.test(s.headline || ""));
+      if (ml.length) {
+        const translated = await translateHeadlines(ml.map((s) => s.headline));
+        await Promise.all(
+          ml.map((s, idx) =>
+            translated[idx]
+              ? supabase.from("stories").update({ headline_en: translated[idx] }).eq("id", s.id)
+              : Promise.resolve()
+          )
+        );
+      }
+    } catch (err) {
+      console.error("[refresh] translation fallback failed", err);
+      triageErrors.push(`translate: ${err.message}`);
     }
 
     // ---- Push alerts for newly-scored high-priority stories ----
